@@ -197,7 +197,7 @@ mod test {
     fn test_cmp() {
         let mut cpu = CPU::new();
         cpu.load_and_run(vec![0xA9, 0x22, 0xC9, 0x22, 0x00]);
-        assert!(cpu.check_flag(ZERO_FLAG));        
+        assert!(cpu.check_flag(ZERO_FLAG));
 
         cpu.mem_write(0x10, 0x23);
         cpu.load_and_run(vec![0xA9, 0x22, 0xC5, 0x10, 0x00]);
@@ -205,7 +205,7 @@ mod test {
 
         cpu.mem_write(0x10, 0x21);
         cpu.load_and_run(vec![0xA9, 0x22, 0xC5, 0x10, 0x00]);
-        assert!(cpu.check_flag(CARRY_FLAG));        
+        assert!(cpu.check_flag(CARRY_FLAG));
     }
 
     #[test]
@@ -218,5 +218,99 @@ mod test {
         cpu.mem_write(0x10, 0x00);
         cpu.load_and_run(vec![0xC6, 0x10, 0x00]);
         assert_eq!(cpu.mem_read(0x10), 0xFF);
+    }
+
+    #[test]
+    fn test_eor() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0xFF, 0x49, 0xAA, 0x00]);
+        assert_eq!(cpu.register_a, 0xFF ^ 0xAA);
+    }
+
+    #[test]
+    fn test_inc() {
+        let mut cpu = CPU::new();
+        cpu.mem_write(0x10, 0xFF);
+        cpu.load_and_run(vec![0xE6, 0x10, 0xE6, 0x10, 0x00]);
+        assert_eq!(cpu.mem_read(0x10), 0x01);
+    }
+
+    #[test]
+    fn test_jmp_abs() {
+        /*
+            LDA #$8
+            STA $11
+        loop:
+            BIT $11
+            BNE end
+            INC $10
+            LDA $10
+            JMP loop
+        end:
+            BRK
+        */
+
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![
+            0xA9, 0x08, 0x85, 0x11, 0x24, 0x11, 0xD0, 0x07, 0xE6, 0x10, 0xA5, 0x10, 0x4C, 0x04,
+            0x06, 0x00,
+        ]);
+
+        assert_eq!(cpu.register_a, 0x08);
+    }
+
+    #[test]
+    fn test_jmp_indirect() {
+        let mut cpu = CPU::new();
+
+        cpu.mem_write_u16(0xCC01, 0x1111);
+
+        cpu.load_and_run(vec![0xA9, 0x01, 0x85, 0xF0, 0xA9, 0xCC, 0x85, 0xF1, 0x6C, 0xF0, 0x00]);
+        assert_eq!(cpu.program_counter, 0x1112);
+    }
+
+    #[test]
+    fn test_jsr() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0x20, 0x03, 0x80, 0x00]);
+        dbg!(cpu.stack_pointer);
+        assert_eq!(cpu.get_stack_top_u16(), 0x8003);
+    }
+
+    #[test]
+    fn test_lsr() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0xFF, 0x4A, 0x00]);
+        assert_eq!(cpu.register_a, 0x7F);
+        assert!(cpu.check_flag(CARRY_FLAG));
+    }
+
+    #[test]
+    fn test_ora() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0x0F, 0x09, 0x0A, 0x00]);
+        assert_eq!(cpu.register_a, 0x0F);
+    }
+
+    #[test]
+    fn test_pha() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0x55, 0x48, 0x00]);
+        assert_eq!(cpu.get_stack_top(), 0x55);
+    }
+
+    #[test]
+    fn test_pla() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0x55, 0x48, 0xA9, 0x00, 0x68, 0x00]);
+        assert_eq!(cpu.register_a, 0x55);
+    }
+
+    #[test]
+    fn test_plp() {
+        let mut cpu = CPU::new();
+        cpu.mem_write(0x10, 0xFF);
+        cpu.load_and_run(vec![0xE6, 0x10, 0x08, 0xE6, 0x10, 0x28, 0x00]);
+        assert!(cpu.check_flag(ZERO_FLAG));
     }
 }
