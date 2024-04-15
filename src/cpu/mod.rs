@@ -265,7 +265,9 @@ mod test {
 
         cpu.mem_write_u16(0xCC01, 0x1111);
 
-        cpu.load_and_run(vec![0xA9, 0x01, 0x85, 0xF0, 0xA9, 0xCC, 0x85, 0xF1, 0x6C, 0xF0, 0x00]);
+        cpu.load_and_run(vec![
+            0xA9, 0x01, 0x85, 0xF0, 0xA9, 0xCC, 0x85, 0xF1, 0x6C, 0xF0, 0x00,
+        ]);
         assert_eq!(cpu.program_counter, 0x1112);
     }
 
@@ -312,5 +314,46 @@ mod test {
         cpu.mem_write(0x10, 0xFF);
         cpu.load_and_run(vec![0xE6, 0x10, 0x08, 0xE6, 0x10, 0x28, 0x00]);
         assert!(cpu.check_flag(ZERO_FLAG));
+    }
+
+    #[test]
+    fn test_rol() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0xFE, 0x2A, 0x00]);
+        assert_eq!(cpu.register_a, 0xFC);
+        assert!(cpu.check_flag(CARRY_FLAG));
+    }
+
+    #[test]
+    fn test_ror() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0x7F, 0x6A, 0x00]);
+        assert_eq!(cpu.register_a, 0x3F);
+        assert!(cpu.check_flag(CARRY_FLAG));
+    }
+
+    #[test]
+    fn test_rti() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0x33, 0x48, 0x48, 0xA9, 0xFF, 0x08, 0x40, 0x00]);
+        assert_eq!(cpu.program_counter, 0x3334);
+        assert!(cpu.check_flag(NEGATIVE_FLAG));
+    }
+
+    #[test]
+    fn test_jsr_rts() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![
+            0x20, 0x09, 0x80, 0x20, 0x0c, 0x80,
+            0x20, 0x12, 0x80, 0xa2, 0x00, 0x80, 0xe8,
+            0xe0, 0x05, 0xd0, 0xfb, 0x60, 0x00
+        ]);
+    }
+
+    #[test]
+    fn test_sbc() {
+        let mut cpu = CPU::new();
+        cpu.load_and_run(vec![0xA9, 0x22, 0xE9, 0x12, 0x00]);
+        assert_eq!(cpu.register_a, 0x0F);
     }
 }

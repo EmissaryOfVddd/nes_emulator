@@ -3,26 +3,8 @@ use crate::cpu::{constants, CPU};
 mod cpu;
 
 fn main() {
-    let table = [
-        (80u8, 16u8, 96u8, false),
-        (80, 80, 160, true),
-        (80, 144, 224, false),
-        (80, 208, 32, false),
-        (208, 16, 224, false),
-        (208, 80, 32, false),
-        (208, 144, 96, true),
-    ];
-
-    for entry in table {
-        let (a, b, ans, val) = entry;
-        let (ans_adc, val_adc) = adc(a, b, 0);
-        if ans_adc == ans && val == val_adc {
-            println!("PASS");
-        } else {
-            println!("FAIL: {ans_adc}, {val_adc}");
-            dbg!(ans_adc, val_adc);
-        }
-    }
+    let mut cpu = CPU::new();
+    cpu.load_and_run(vec![]);
 }
 
 fn adc(a: u8, b: u8, c: u8) -> (u8, bool) {
