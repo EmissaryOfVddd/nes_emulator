@@ -46,8 +46,12 @@ impl CPU {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run_with_callback<F>(&mut self, mut callback: F) 
+    where F: FnMut(&mut CPU),
+    {
         loop {
+            callback(self);
+
             let opscode = self.mem_read(self.program_counter);
             self.inc_prg();
             let pc_state = self.program_counter;
@@ -99,6 +103,7 @@ impl CPU {
                 "ROL" => self.rol(&opcode.mode),
                 "ROR" => self.ror(&opcode.mode),
                 "RTI" => self.rti(),
+                "RTS" => self.rts(),
                 "SBC" => self.sbc(&opcode.mode),
                 "SEC" => self.set_flag(CARRY_FLAG),
                 "SED" => self.set_flag(DECIMAL_MODE),
@@ -207,8 +212,6 @@ impl CPU {
         let addr = self.get_operand_address(mode);
         let data = self.mem_read(addr);
 
-        println!("{:b} {:b}", self.register_a, data);
-
         let res = self.register_a & data;
         if res == 0 {
             self.set_flag(ZERO_FLAG);
@@ -280,9 +283,9 @@ impl CPU {
 
     fn jmp(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
-        let address = self.mem_read_u16(addr);
+        // let address = self.mem_read_u16(addr);
 
-        self.program_counter = address;
+        self.program_counter = addr;
     }
 
     fn jsr(&mut self, mode: &AddressingMode) {
@@ -504,11 +507,9 @@ impl CPU {
     }
 
     fn push_u16(&mut self, data: u16) {
-        let stack_top = (0xFF + self.stack_pointer as u16) as usize;
         let [lo, hi] = data.to_le_bytes();
-        self.stack_pointer = self.stack_pointer.checked_sub(2).expect("Stack overflow");
-        self.memory[stack_top] = hi;
-        self.memory[stack_top - 1] = lo;
+        self.push(hi);
+        self.push(lo);
     }
 
     fn pop_u16(&mut self) -> u16 {
@@ -570,24 +571,28 @@ impl CPU {
         res
     }
 
-    pub(super) fn mem_read(&self, addr: u16) -> u8 {
+    pub fn mem_read(&self, addr: u16) -> u8 {
         self.memory[addr as usize]
     }
 
-    pub(super) fn mem_read_u16(&self, pos: u16) -> u16 {
+    pub fn mem_read_u16(&self, pos: u16) -> u16 {
         let lo = self.mem_read(pos);
         let hi = self.mem_read(pos + 1);
         u16::from_le_bytes([lo, hi])
     }
 
-    pub(super) fn mem_write(&mut self, addr: u16, data: u8) {
+    pub fn mem_write(&mut self, addr: u16, data: u8) {
         self.memory[addr as usize] = data;
     }
 
-    pub(super) fn mem_write_u16(&mut self, pos: u16, data: u16) {
+    pub fn mem_write_u16(&mut self, pos: u16, data: u16) {
         let [lo, hi] = data.to_le_bytes();
         self.mem_write(pos, lo);
         self.mem_write(pos + 1, hi);
+    }
+
+    pub fn run(&mut self) {
+        self.run_with_callback(|_| {});
     }
 
     pub fn load_and_run(&mut self, program: Vec<u8>) {
@@ -607,8 +612,8 @@ impl CPU {
     }
 
     pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
-        self.mem_write_u16(0xFFFC, 0x8000);
+        self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]);
+        self.mem_write_u16(0xFFFC, 0x0600);
     }
 
     fn inc_prg(&mut self) {
