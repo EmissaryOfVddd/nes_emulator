@@ -51,38 +51,14 @@ lazy_static! {
             op(0x79, "ADC", 3, 4, AddressingMode::Absolute_Y),
             op(0x61, "ADC", 2, 6, AddressingMode::Indirect_X),
             op(0x71, "ADC", 2, 5, AddressingMode::Indirect_Y),
-            (
-                0x29,
-                Opcode::new(0x29, "AND", 2, 2, AddressingMode::Immediate),
-            ),
-            (
-                0x25,
-                Opcode::new(0x25, "AND", 2, 3, AddressingMode::ZeroPage),
-            ),
-            (
-                0x35,
-                Opcode::new(0x35, "AND", 2, 4, AddressingMode::ZeroPage_X),
-            ),
-            (
-                0x2D,
-                Opcode::new(0x2D, "AND", 3, 4, AddressingMode::Absolute),
-            ),
-            (
-                0x3D,
-                Opcode::new(0x3D, "AND", 3, 4, AddressingMode::Absolute_X),
-            ),
-            (
-                0x39,
-                Opcode::new(0x39, "AND", 3, 4, AddressingMode::Absolute_Y),
-            ),
-            (
-                0x21,
-                Opcode::new(0x21, "AND", 2, 6, AddressingMode::Indirect_X),
-            ),
-            (
-                0x31,
-                Opcode::new(0x31, "AND", 2, 5, AddressingMode::Indirect_Y),
-            ),
+            op(0x29, "AND", 2, 2, AddressingMode::Immediate),
+            op(0x25, "AND", 2, 3, AddressingMode::ZeroPage),
+            op(0x35, "AND", 2, 4, AddressingMode::ZeroPage_X),
+            op(0x2D, "AND", 3, 4, AddressingMode::Absolute),
+            op(0x3D, "AND", 3, 4, AddressingMode::Absolute_X),
+            op(0x39, "AND", 3, 4, AddressingMode::Absolute_Y),
+            op(0x21, "AND", 2, 6, AddressingMode::Indirect_X),
+            op(0x31, "AND", 2, 5, AddressingMode::Indirect_Y),
             (
                 0x0A,
                 Opcode::new(0x0A, "ASL", 1, 2, AddressingMode::Accumulator),
@@ -456,16 +432,13 @@ lazy_static! {
             op(0x36, "ROL", 2, 6, AddressingMode::ZeroPage_X),
             op(0x2E, "ROL", 3, 6, AddressingMode::Absolute),
             op(0x3E, "ROL", 3, 7, AddressingMode::Absolute_X),
-
             op(0x6A, "ROR", 1, 2, AddressingMode::Accumulator),
             op(0x66, "ROR", 2, 5, AddressingMode::ZeroPage),
             op(0x76, "ROR", 2, 6, AddressingMode::ZeroPage_X),
             op(0x6E, "ROR", 3, 6, AddressingMode::Absolute),
             op(0x7E, "ROR", 3, 7, AddressingMode::Absolute_X),
-
             op(0x40, "RTI", 1, 6, AddressingMode::Implied),
             op(0x60, "RTS", 1, 6, AddressingMode::Implied),
-
             op(0xE9, "SBC", 2, 2, AddressingMode::Immediate),
             op(0xE5, "SBC", 2, 3, AddressingMode::ZeroPage),
             op(0xF5, "SBC", 2, 4, AddressingMode::ZeroPage_X),
@@ -474,11 +447,9 @@ lazy_static! {
             op(0xF9, "SBC", 3, 4, AddressingMode::Absolute_Y),
             op(0xE1, "SBC", 2, 6, AddressingMode::Indirect_X),
             op(0xF1, "SBC", 2, 5, AddressingMode::Indirect_Y),
-
             op(0x38, "SEC", 1, 2, AddressingMode::Implied),
             op(0xF8, "SED", 1, 2, AddressingMode::Implied),
             op(0x78, "SEI", 1, 2, AddressingMode::Implied),
-
             op(0x85, "STA", 2, 3, AddressingMode::ZeroPage),
             op(0x95, "STA", 2, 4, AddressingMode::ZeroPage_X),
             op(0x8D, "STA", 3, 4, AddressingMode::Absolute),
@@ -486,15 +457,12 @@ lazy_static! {
             op(0x99, "STA", 3, 5, AddressingMode::Absolute_Y),
             op(0x81, "STA", 2, 6, AddressingMode::Indirect_X),
             op(0x91, "STA", 2, 6, AddressingMode::Indirect_Y),
-
             op(0x86, "STX", 2, 3, AddressingMode::ZeroPage),
             op(0x96, "STX", 2, 4, AddressingMode::ZeroPage_Y),
             op(0x8E, "STX", 3, 4, AddressingMode::Absolute),
-
             op(0x84, "STY", 2, 3, AddressingMode::ZeroPage),
             op(0x94, "STY", 2, 4, AddressingMode::ZeroPage_X),
             op(0x8C, "STY", 3, 4, AddressingMode::Absolute),
-
             op(0xAA, "TAX", 1, 2, AddressingMode::Implied),
             op(0xA8, "TAY", 1, 2, AddressingMode::Implied),
             op(0xBA, "TSX", 1, 2, AddressingMode::Implied),

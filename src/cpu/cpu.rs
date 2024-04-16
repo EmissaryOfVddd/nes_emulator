@@ -1,4 +1,4 @@
-use crate::cpu::constants::{DECIMAL_MODE, INTERRUPT_DISABLE};
+use crate::{bus::bus::Bus, cpu::constants::{DECIMAL_MODE, INTERRUPT_DISABLE}};
 
 use self::constants::{CARRY_FLAG, NEGATIVE_FLAG, OVERFLOW_FLAG, ZERO_FLAG};
 
@@ -11,7 +11,26 @@ pub struct CPU {
     pub stack_pointer: u8,
     pub flags: u8,
     pub program_counter: u16,
-    memory: [u8; 0xFFFF],
+    pub bus: Bus,
+    // memory: [u8; 0xFFFF],
+}
+
+pub trait Mem {
+    fn mem_read(&self, addr: u16) -> u8;
+    fn mem_write(&mut self, addr: u16, data: u8);
+
+    fn mem_read_u16(&self, pos: u16) -> u16 {
+        let lo = self.mem_read(pos);
+        let hi = self.mem_read(pos + 1);
+
+        u16::from_le_bytes([lo, hi])
+    }
+
+    fn mem_write_u16(&mut self, pos: u16, data: u16) {
+        let [lo, hi] = data.to_le_bytes();
+        self.mem_write(pos, lo);
+        self.mem_write(pos + 1, hi);
+    }
 }
 
 #[derive(Debug)]
@@ -42,12 +61,13 @@ impl CPU {
             stack_pointer: 0,
             flags: 0,
             program_counter: 0,
-            memory: [0x0; 0xFFFF],
+            bus: Bus::new(),
         }
     }
 
-    pub fn run_with_callback<F>(&mut self, mut callback: F) 
-    where F: FnMut(&mut CPU),
+    pub fn run_with_callback<F>(&mut self, mut callback: F)
+    where
+        F: FnMut(&mut CPU),
     {
         loop {
             callback(self);
@@ -394,7 +414,10 @@ impl CPU {
         let addr = self.get_operand_address(mode);
         let data = self.mem_read(addr);
 
-        self.register_a = self.add_with_carry(self.register_a, (data as i8).wrapping_neg().wrapping_sub(1) as u8);
+        self.register_a = self.add_with_carry(
+            self.register_a,
+            (data as i8).wrapping_neg().wrapping_sub(1) as u8,
+        );
     }
 
     fn stx(&mut self, mode: &AddressingMode) {
@@ -497,13 +520,13 @@ impl CPU {
     fn push(&mut self, data: u8) {
         let stack_top = 0x100 + self.stack_pointer as u16;
         self.stack_pointer = self.stack_pointer.checked_sub(1).expect("Stack overflow");
-        self.memory[stack_top as usize] = data;
+        self.mem_write(stack_top, data);
     }
 
     fn pop(&mut self) -> u8 {
         let stack_top = 0x100 + self.stack_pointer as u16 + 1;
         self.stack_pointer = self.stack_pointer.checked_add(1).expect("Stack underflow");
-        self.memory[stack_top as usize]
+        self.mem_read(stack_top)
     }
 
     fn push_u16(&mut self, data: u16) {
@@ -550,10 +573,12 @@ impl CPU {
         res
     }
 
+    #[allow(unused)]
     pub(super) fn get_stack_top(&self) -> u8 {
         self.mem_read(0x100 + self.stack_pointer as u16 + 1)
     }
 
+    #[allow(unused)]
     pub(super) fn get_stack_top_u16(&self) -> u16 {
         self.mem_read_u16(0x100 + self.stack_pointer as u16)
     }
@@ -569,26 +594,6 @@ impl CPU {
         self.update_neg_and_zero_status(res);
 
         res
-    }
-
-    pub fn mem_read(&self, addr: u16) -> u8 {
-        self.memory[addr as usize]
-    }
-
-    pub fn mem_read_u16(&self, pos: u16) -> u16 {
-        let lo = self.mem_read(pos);
-        let hi = self.mem_read(pos + 1);
-        u16::from_le_bytes([lo, hi])
-    }
-
-    pub fn mem_write(&mut self, addr: u16, data: u8) {
-        self.memory[addr as usize] = data;
-    }
-
-    pub fn mem_write_u16(&mut self, pos: u16, data: u16) {
-        let [lo, hi] = data.to_le_bytes();
-        self.mem_write(pos, lo);
-        self.mem_write(pos + 1, hi);
     }
 
     pub fn run(&mut self) {
@@ -650,6 +655,24 @@ impl CPU {
         } else {
             self.remove_flag(NEGATIVE_FLAG);
         }
+    }
+}
+
+impl Mem for CPU {
+    fn mem_read(&self, addr: u16) -> u8 {
+        self.bus.mem_read(addr)
+    }
+
+    fn mem_write(&mut self, addr: u16, data: u8) {
+        self.bus.mem_write(addr, data)
+    }
+
+    fn mem_read_u16(&self, pos: u16) -> u16 {
+        self.bus.mem_read_u16(pos)
+    }
+
+    fn mem_write_u16(&mut self, pos: u16, data: u16) {
+        self.bus.mem_write_u16(pos, data)
     }
 }
 
