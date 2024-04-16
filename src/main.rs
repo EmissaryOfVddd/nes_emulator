@@ -10,6 +10,7 @@ use crate::cpu::CPU;
 
 mod cpu;
 mod bus;
+mod cartridge;
 
 fn main() {
     let sdl_context = sdl2::init().unwrap();
