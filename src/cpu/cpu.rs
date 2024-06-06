@@ -4,6 +4,13 @@ use self::constants::{CARRY_FLAG, NEGATIVE_FLAG, OVERFLOW_FLAG, ZERO_FLAG};
 
 use super::opcodes::OPCODES;
 
+pub fn trace(cpu: &CPU) -> String {
+    let mut trace_res = String::new();
+    trace_res.push_str(&format!("{:04X}", cpu.program_counter));
+    
+    trace_res
+}
+
 pub struct CPU {
     pub register_a: u8,
     pub register_x: u8,
