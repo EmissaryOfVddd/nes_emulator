@@ -4,26 +4,26 @@ use super::cpu::AddressingMode;
 use lazy_static::lazy_static;
 
 pub(super) struct Opcode {
-    pub code: u8,
+    pub _code: u8,
     pub mnemonic: &'static str,
     pub bytes: u8,
-    pub cycles: u8,
+    pub _cycles: u8,
     pub mode: AddressingMode,
 }
 
 impl Opcode {
     pub fn new(
-        code: u8,
+        _code: u8,
         mnemonic: &'static str,
         bytes: u8,
-        cycles: u8,
+        _cycles: u8,
         mode: AddressingMode,
     ) -> Self {
         Self {
-            code,
+            _code,
             mnemonic,
             bytes,
-            cycles,
+            _cycles,
             mode,
         }
     }

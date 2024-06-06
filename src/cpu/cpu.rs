@@ -1,4 +1,4 @@
-use crate::{bus::bus::Bus, cpu::constants::{DECIMAL_MODE, INTERRUPT_DISABLE}};
+use crate::{bus::bus::Bus, cartridge::Rom, cpu::constants::{DECIMAL_MODE, INTERRUPT_DISABLE}};
 
 use self::constants::{CARRY_FLAG, NEGATIVE_FLAG, OVERFLOW_FLAG, ZERO_FLAG};
 
@@ -53,16 +53,18 @@ pub enum AddressingMode {
 }
 
 impl CPU {
-    pub fn new() -> Self {
-        CPU {
+    pub fn load_rom(raw: Vec<u8>) -> Result<Self, String> {
+        let rom = Rom::new(&raw)?;
+
+        Ok(CPU {
             register_a: 0,
             register_x: 0,
             register_y: 0,
             stack_pointer: 0,
             flags: 0,
             program_counter: 0,
-            bus: Bus::new(),
-        }
+            bus: Bus::new(rom),
+        })
     }
 
     pub fn run_with_callback<F>(&mut self, mut callback: F)
@@ -596,14 +598,14 @@ impl CPU {
         res
     }
 
-    pub fn run(&mut self) {
+    pub fn _run(&mut self) {
         self.run_with_callback(|_| {});
     }
 
-    pub fn load_and_run(&mut self, program: Vec<u8>) {
-        self.load(program);
+    pub fn _load_and_run(&mut self, program: Vec<u8>) {
+        self._load(program);
         self.reset();
-        self.run()
+        self._run()
     }
 
     pub fn reset(&mut self) {
@@ -616,8 +618,10 @@ impl CPU {
         self.program_counter = self.mem_read_u16(0xFFFC);
     }
 
-    pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]);
+    pub fn _load(&mut self, program: Vec<u8>) {
+        for (id, val) in program.iter().enumerate() {
+            self.bus.mem_write(0x0600 + id as u16, *val);
+        }
         self.mem_write_u16(0xFFFC, 0x0600);
     }
 
