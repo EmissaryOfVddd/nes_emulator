@@ -1,8 +1,15 @@
-use crate::cpu::constants::{DECIMAL_MODE, INTERRUPT_DISABLE};
+use crate::{bus::bus::Bus, cartridge::Rom, cpu::constants::{DECIMAL_MODE, INTERRUPT_DISABLE}};
 
 use self::constants::{CARRY_FLAG, NEGATIVE_FLAG, OVERFLOW_FLAG, ZERO_FLAG};
 
 use super::opcodes::OPCODES;
+
+pub fn trace(cpu: &CPU) -> String {
+    let mut trace_res = String::new();
+    trace_res.push_str(&format!("{:04X}", cpu.program_counter));
+    
+    trace_res
+}
 
 pub struct CPU {
     pub register_a: u8,
@@ -11,7 +18,26 @@ pub struct CPU {
     pub stack_pointer: u8,
     pub flags: u8,
     pub program_counter: u16,
-    memory: [u8; 0xFFFF],
+    pub bus: Bus,
+    // memory: [u8; 0xFFFF],
+}
+
+pub trait Mem {
+    fn mem_read(&self, addr: u16) -> u8;
+    fn mem_write(&mut self, addr: u16, data: u8);
+
+    fn mem_read_u16(&self, pos: u16) -> u16 {
+        let lo = self.mem_read(pos);
+        let hi = self.mem_read(pos + 1);
+
+        u16::from_le_bytes([lo, hi])
+    }
+
+    fn mem_write_u16(&mut self, pos: u16, data: u16) {
+        let [lo, hi] = data.to_le_bytes();
+        self.mem_write(pos, lo);
+        self.mem_write(pos + 1, hi);
+    }
 }
 
 #[derive(Debug)]
@@ -34,20 +60,27 @@ pub enum AddressingMode {
 }
 
 impl CPU {
-    pub fn new() -> Self {
-        CPU {
+    pub fn load_rom(raw: Vec<u8>) -> Result<Self, String> {
+        let rom = Rom::new(&raw)?;
+
+        Ok(CPU {
             register_a: 0,
             register_x: 0,
             register_y: 0,
             stack_pointer: 0,
             flags: 0,
             program_counter: 0,
-            memory: [0x0; 0xFFFF],
-        }
+            bus: Bus::new(rom),
+        })
     }
 
-    pub fn run(&mut self) {
+    pub fn run_with_callback<F>(&mut self, mut callback: F)
+    where
+        F: FnMut(&mut CPU),
+    {
         loop {
+            callback(self);
+
             let opscode = self.mem_read(self.program_counter);
             self.inc_prg();
             let pc_state = self.program_counter;
@@ -99,6 +132,7 @@ impl CPU {
                 "ROL" => self.rol(&opcode.mode),
                 "ROR" => self.ror(&opcode.mode),
                 "RTI" => self.rti(),
+                "RTS" => self.rts(),
                 "SBC" => self.sbc(&opcode.mode),
                 "SEC" => self.set_flag(CARRY_FLAG),
                 "SED" => self.set_flag(DECIMAL_MODE),
@@ -207,8 +241,6 @@ impl CPU {
         let addr = self.get_operand_address(mode);
         let data = self.mem_read(addr);
 
-        println!("{:b} {:b}", self.register_a, data);
-
         let res = self.register_a & data;
         if res == 0 {
             self.set_flag(ZERO_FLAG);
@@ -280,9 +312,9 @@ impl CPU {
 
     fn jmp(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
-        let address = self.mem_read_u16(addr);
+        // let address = self.mem_read_u16(addr);
 
-        self.program_counter = address;
+        self.program_counter = addr;
     }
 
     fn jsr(&mut self, mode: &AddressingMode) {
@@ -391,7 +423,10 @@ impl CPU {
         let addr = self.get_operand_address(mode);
         let data = self.mem_read(addr);
 
-        self.register_a = self.add_with_carry(self.register_a, (data as i8).wrapping_neg().wrapping_sub(1) as u8);
+        self.register_a = self.add_with_carry(
+            self.register_a,
+            (data as i8).wrapping_neg().wrapping_sub(1) as u8,
+        );
     }
 
     fn stx(&mut self, mode: &AddressingMode) {
@@ -494,21 +529,19 @@ impl CPU {
     fn push(&mut self, data: u8) {
         let stack_top = 0x100 + self.stack_pointer as u16;
         self.stack_pointer = self.stack_pointer.checked_sub(1).expect("Stack overflow");
-        self.memory[stack_top as usize] = data;
+        self.mem_write(stack_top, data);
     }
 
     fn pop(&mut self) -> u8 {
         let stack_top = 0x100 + self.stack_pointer as u16 + 1;
         self.stack_pointer = self.stack_pointer.checked_add(1).expect("Stack underflow");
-        self.memory[stack_top as usize]
+        self.mem_read(stack_top)
     }
 
     fn push_u16(&mut self, data: u16) {
-        let stack_top = (0xFF + self.stack_pointer as u16) as usize;
         let [lo, hi] = data.to_le_bytes();
-        self.stack_pointer = self.stack_pointer.checked_sub(2).expect("Stack overflow");
-        self.memory[stack_top] = hi;
-        self.memory[stack_top - 1] = lo;
+        self.push(hi);
+        self.push(lo);
     }
 
     fn pop_u16(&mut self) -> u16 {
@@ -549,10 +582,12 @@ impl CPU {
         res
     }
 
+    #[allow(unused)]
     pub(super) fn get_stack_top(&self) -> u8 {
         self.mem_read(0x100 + self.stack_pointer as u16 + 1)
     }
 
+    #[allow(unused)]
     pub(super) fn get_stack_top_u16(&self) -> u16 {
         self.mem_read_u16(0x100 + self.stack_pointer as u16)
     }
@@ -570,30 +605,14 @@ impl CPU {
         res
     }
 
-    pub(super) fn mem_read(&self, addr: u16) -> u8 {
-        self.memory[addr as usize]
+    pub fn _run(&mut self) {
+        self.run_with_callback(|_| {});
     }
 
-    pub(super) fn mem_read_u16(&self, pos: u16) -> u16 {
-        let lo = self.mem_read(pos);
-        let hi = self.mem_read(pos + 1);
-        u16::from_le_bytes([lo, hi])
-    }
-
-    pub(super) fn mem_write(&mut self, addr: u16, data: u8) {
-        self.memory[addr as usize] = data;
-    }
-
-    pub(super) fn mem_write_u16(&mut self, pos: u16, data: u16) {
-        let [lo, hi] = data.to_le_bytes();
-        self.mem_write(pos, lo);
-        self.mem_write(pos + 1, hi);
-    }
-
-    pub fn load_and_run(&mut self, program: Vec<u8>) {
-        self.load(program);
+    pub fn _load_and_run(&mut self, program: Vec<u8>) {
+        self._load(program);
         self.reset();
-        self.run()
+        self._run()
     }
 
     pub fn reset(&mut self) {
@@ -606,9 +625,11 @@ impl CPU {
         self.program_counter = self.mem_read_u16(0xFFFC);
     }
 
-    pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x8000..(0x8000 + program.len())].copy_from_slice(&program[..]);
-        self.mem_write_u16(0xFFFC, 0x8000);
+    pub fn _load(&mut self, program: Vec<u8>) {
+        for (id, val) in program.iter().enumerate() {
+            self.bus.mem_write(0x0600 + id as u16, *val);
+        }
+        self.mem_write_u16(0xFFFC, 0x0600);
     }
 
     fn inc_prg(&mut self) {
@@ -645,6 +666,24 @@ impl CPU {
         } else {
             self.remove_flag(NEGATIVE_FLAG);
         }
+    }
+}
+
+impl Mem for CPU {
+    fn mem_read(&self, addr: u16) -> u8 {
+        self.bus.mem_read(addr)
+    }
+
+    fn mem_write(&mut self, addr: u16, data: u8) {
+        self.bus.mem_write(addr, data)
+    }
+
+    fn mem_read_u16(&self, pos: u16) -> u16 {
+        self.bus.mem_read_u16(pos)
+    }
+
+    fn mem_write_u16(&mut self, pos: u16, data: u16) {
+        self.bus.mem_write_u16(pos, data)
     }
 }
 
