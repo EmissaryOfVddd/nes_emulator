@@ -12,7 +12,10 @@ pub struct Bus {
 
 impl Bus {
     pub fn new(rom: Rom) -> Self {
-        Self { cpu_vram: [0; 2048], rom }
+        Self {
+            cpu_vram: [0; 2048],
+            rom,
+        }
     }
 
     fn read_prg_rom(&self, mut addr: u16) -> u8 {

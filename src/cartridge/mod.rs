@@ -19,7 +19,7 @@ pub struct Rom {
 impl Rom {
     pub fn new(raw: &Vec<u8>) -> Result<Rom, String> {
         if &raw[0..4] != NES_TAG {
-            return Err("File is not in iNES format".into())
+            return Err("File is not in iNES format".into());
         }
 
         let prg_rom_size = raw[4] as usize * PRG_ROM_PAGE_SIZE;
@@ -36,7 +36,7 @@ impl Rom {
 
         let version = (control_byte_2 >> 2) & 0x03;
         if version != 0 {
-            return Err("Doesn't currently support iNES 2.0 format".into())
+            return Err("Doesn't currently support iNES 2.0 format".into());
         }
 
         let four_screen = control_byte_1 & 0x08 != 0;
@@ -59,4 +59,8 @@ impl Rom {
             screen_mirroring,
         })
     }
+}
+
+pub fn test_rom() -> Rom {
+    todo!()
 }

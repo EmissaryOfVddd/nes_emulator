@@ -3,7 +3,7 @@ mod opcodes;
 pub use cpu::{constants, CPU};
 
 #[cfg(test)]
-#[cfg(feature="")]
+#[cfg(feature = "")]
 mod test {
     use crate::cpu::constants::{CARRY_FLAG, NEGATIVE_FLAG, ZERO_FLAG};
 

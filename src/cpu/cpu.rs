@@ -1,15 +1,14 @@
-use crate::{bus::bus::Bus, cartridge::Rom, cpu::constants::{DECIMAL_MODE, INTERRUPT_DISABLE}};
+use constants::BREAK_2;
+
+use crate::{
+    bus::bus::Bus,
+    cartridge::Rom,
+    cpu::constants::{DECIMAL_MODE, INTERRUPT_DISABLE},
+};
 
 use self::constants::{CARRY_FLAG, NEGATIVE_FLAG, OVERFLOW_FLAG, ZERO_FLAG};
 
 use super::opcodes::OPCODES;
-
-pub fn trace(cpu: &CPU) -> String {
-    let mut trace_res = String::new();
-    trace_res.push_str(&format!("{:04X}", cpu.program_counter));
-    
-    trace_res
-}
 
 pub struct CPU {
     pub register_a: u8,
@@ -19,7 +18,6 @@ pub struct CPU {
     pub flags: u8,
     pub program_counter: u16,
     pub bus: Bus,
-    // memory: [u8; 0xFFFF],
 }
 
 pub trait Mem {
@@ -620,7 +618,7 @@ impl CPU {
         self.register_x = 0;
         self.register_y = 0;
         self.stack_pointer = 0xFF;
-        self.flags = 0;
+        self.set_flag(INTERRUPT_DISABLE | BREAK_2);
 
         self.program_counter = self.mem_read_u16(0xFFFC);
     }
@@ -692,6 +690,112 @@ pub mod constants {
     pub const ZERO_FLAG: u8 = 0b0000_0010;
     pub const INTERRUPT_DISABLE: u8 = 0b0000_0100;
     pub const DECIMAL_MODE: u8 = 0b0000_1000;
+    pub const BREAK: u8 = 0b0001_0000;
+    pub const BREAK_2: u8 = 0b0010_0000;
     pub const OVERFLOW_FLAG: u8 = 0b0100_0000;
     pub const NEGATIVE_FLAG: u8 = 0b1000_0000;
+}
+
+pub fn trace(cpu: &CPU) -> String {
+    let pc = format!("{:04X}", cpu.program_counter);
+
+    let opscode = cpu.mem_read(cpu.program_counter);
+    let opcode = OPCODES
+        .get(&opscode)
+        .expect("That is really fucked up opcode");
+
+    let mut real_addr = String::new();
+
+    let bytes = match opcode.bytes {
+        1 => format!("{:02X}", opcode.code),
+        2 => {
+            let second_arg = cpu.mem_read(cpu.program_counter + 1);
+            real_addr = match opcode.mode {
+                AddressingMode::Immediate => format!("#${:02X}", second_arg),
+                AddressingMode::ZeroPage => format!("${:02X}", second_arg),
+                AddressingMode::ZeroPage_X => {
+                    let addr = second_arg.wrapping_add(cpu.register_x);
+                    format!("${:02X}", addr)
+                }
+                AddressingMode::ZeroPage_Y => {
+                    let addr = second_arg.wrapping_add(cpu.register_y);
+                    format!("${:02X}", addr)
+                }
+                AddressingMode::Relative => {
+                    let offset = second_arg as u16;
+                    let absolute_addr = cpu.program_counter.wrapping_add(2).wrapping_add(offset);
+                    format!("${:04X}", absolute_addr)
+                }
+                AddressingMode::Indirect_X => {
+                    let base = second_arg;
+
+                    let ptr = base.wrapping_add(cpu.register_x);
+                    let lo = cpu.mem_read(ptr as u16);
+                    let hi = cpu.mem_read(ptr as u16 + 1);
+                    let real_addr = u16::from_le_bytes([lo, hi]);
+                    let val = cpu.mem_read(real_addr);
+
+                    format!("(${base:02X},X) @ {ptr:02X} = {real_addr:04X} = {val:04X}")
+                }
+                AddressingMode::Indirect_Y => {
+                    let base = second_arg;
+
+                    let ptr = base.wrapping_add(cpu.register_y);
+                    let lo = cpu.mem_read(ptr as u16);
+                    let hi = cpu.mem_read(ptr as u16 + 1);
+                    let real_addr = u16::from_le_bytes([lo, hi]);
+                    let contents = cpu.mem_read(real_addr);
+
+                    format!("(${base:02X},X) @ {ptr:02X} = {real_addr:04X} = {contents:02X}")
+                }
+                _ => unreachable!(),
+            };
+
+            format!("{:02X} {:02X}", opcode.code, second_arg)
+        }
+        3 => {
+            let second_arg = cpu.mem_read(cpu.program_counter + 1);
+            let third_arg = cpu.mem_read(cpu.program_counter + 2);
+
+            real_addr = match opcode.mode {
+                AddressingMode::Absolute => format!("${third_arg:02X}{second_arg:02X}"),
+                AddressingMode::Absolute_X => {
+                    let base = u16::from_le_bytes([second_arg, third_arg]);
+                    let real_addr = base.wrapping_add(cpu.register_x as u16);
+                    let contents = cpu.mem_read(real_addr);
+
+                    format!("${base:04X},X @ {real_addr:04X} = {contents:02X}")
+                }
+                AddressingMode::Absolute_Y => {
+                    let base = u16::from_le_bytes([second_arg, third_arg]);
+                    let real_addr = base.wrapping_add(cpu.register_y as u16);
+                    let contents = cpu.mem_read(real_addr);
+
+                    format!("${base:04X},Y @ {real_addr:04X} = {contents:02X}")
+                }
+                AddressingMode::Indirect => {
+                    let base = u16::from_le_bytes([second_arg, third_arg]);
+                    let lo = cpu.mem_read(base);
+                    let hi = cpu.mem_read(base + 1);
+                    let real_addr = u16::from_le_bytes([lo, hi]);
+
+                    format!("$({base:04X}) = {real_addr:04X}")
+                }
+                _ => unreachable!(),
+            };
+
+            format!("{:02X} {second_arg:02X} {third_arg:02X}", opcode.code)
+        }
+        _ => unreachable!(),
+    };
+
+    format!(
+        "{pc:6}{bytes:10}{mnemonic:4}{real_addr:28}A:{a:02X} X:{x:02X} Y:{y:02X} P:{p:02X} SP:{sp:02X}",
+        mnemonic = opcode.mnemonic,
+        a = cpu.register_a,
+        x = cpu.register_x,
+        y = cpu.register_y,
+        p = cpu.flags,
+        sp = cpu.stack_pointer,
+    )
 }

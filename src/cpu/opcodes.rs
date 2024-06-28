@@ -4,7 +4,7 @@ use super::cpu::AddressingMode;
 use lazy_static::lazy_static;
 
 pub(super) struct Opcode {
-    pub _code: u8,
+    pub code: u8,
     pub mnemonic: &'static str,
     pub bytes: u8,
     pub _cycles: u8,
@@ -20,7 +20,7 @@ impl Opcode {
         mode: AddressingMode,
     ) -> Self {
         Self {
-            _code,
+            code: _code,
             mnemonic,
             bytes,
             _cycles,
