@@ -1,25 +1,37 @@
-use crate::cpu::{constants, CPU};
+use nes_emulator::cpu::{cpu::trace, CPU};
+use std::{
+    fs::File,
+    io::{self, BufRead, BufReader, Read},
+};
 
-mod cpu;
+fn main() -> io::Result<()> {
+    let mut buf = vec![];
 
-fn main() {
-    let mut cpu = CPU::new();
-    cpu.load_and_run(vec![]);
-}
+    let mut nestest = File::open("roms/nestest.nes")?;
+    let mut log = BufReader::new(File::open("roms/nestest.log")?);
+    nestest.read_to_end(&mut buf)?;
 
-fn adc(a: u8, b: u8, c: u8) -> (u8, bool) {
-    let a = a as u16;
-    let b = b as u16;
-    let c = c as u16;
+    let mut cpu = CPU::load_rom(buf).unwrap();
 
-    let res = a + b + c;
-    let res_u8 = res as u8;
-    let sign_a = a >> 7;
-    let sign_b = b >> 7;
-    let sign_r = res_u8 >> 7;
-    if sign_a == sign_b && sign_r as u16 != sign_a {
-        return (res_u8, true);
-    }
+    cpu.reset();
+    cpu.program_counter = 0xC000;
+    let mut buf = String::new();
+    let mut idx = 0;
+    cpu.run_with_callback(move |cpu| {
+        idx += 1;
+        println!("{idx}");
+        let trace = trace(cpu);
+        log.read_line(&mut buf).unwrap();
+        let (test, _) = buf.split_at(73);
+        if trace != test {
+            println!("{idx} MY TEST:  {trace}");
+            println!("{idx} STANDART: {test}");
+            std::process::exit(0);
+        }
+        buf.clear();
+    });
 
-    return (res_u8, false);
+    println!("Tests succesful");
+
+    Ok(())
 }
