@@ -15,6 +15,8 @@ pub struct PPU {
     pub status: StatusRegister,
 
     internal_data_buf: u8,
+    scanline: u16,
+    cycles: usize,
     addr: AddrRegister,
 }
 
@@ -31,7 +33,32 @@ impl PPU {
             mask: MaskRegister::new(),
             status: StatusRegister::new(),
             ctrl: ControlRegister::new(),
+            scanline: 0,
+            cycles: 0,
         }
+    }
+
+    pub fn tick(&mut self, cycles: u8) -> bool {
+        self.cycles += cycles as usize;
+        if self.cycles >= 341 {
+            self.cycles = self.cycles - 341;
+            self.scanline += 1;
+
+            if self.scanline == 241 {
+                if self.ctrl.generate_vblank_nmi() {
+                    self.status.set_vblank_status(true);
+                    todo!("nmi interrupt")
+                }
+
+                if self.scanline >= 262 {
+                    self.scanline = 0;
+                    self.status.set_vblank_status(false);
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 
     pub fn write_to_ppu_addr(&mut self, data: u8) {
