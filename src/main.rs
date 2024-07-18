@@ -21,7 +21,10 @@ fn main() -> io::Result<()> {
         idx += 1;
         println!("{idx}");
         let trace = trace(cpu);
-        log.read_line(&mut buf).unwrap();
+        if let Ok(0) = log.read_line(&mut buf) {
+            println!("Tests succesful");
+            std::process::exit(0);
+        };
         let (test, _) = buf.split_at(73);
         if trace != test {
             println!("{idx} MY TEST:  {trace}");
@@ -30,8 +33,6 @@ fn main() -> io::Result<()> {
         }
         buf.clear();
     });
-
-    println!("Tests succesful");
 
     Ok(())
 }

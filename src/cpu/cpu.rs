@@ -22,10 +22,10 @@ pub struct CPU {
 }
 
 pub trait Mem {
-    fn mem_read(&self, addr: u16) -> u8;
+    fn mem_read(&mut self, addr: u16) -> u8;
     fn mem_write(&mut self, addr: u16, data: u8);
 
-    fn mem_read_u16(&self, pos: u16) -> u16 {
+    fn mem_read_u16(&mut self, pos: u16) -> u16 {
         let lo = self.mem_read(pos);
         let hi = self.mem_read(pos.wrapping_add(1));
 
@@ -770,7 +770,7 @@ impl CPU {
         self.update_neg_and_zero_status(self.register_a);
     }
 
-    fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
+    fn get_operand_address(&mut self, mode: &AddressingMode) -> u16 {
         match mode {
             AddressingMode::Immediate => self.program_counter,
             AddressingMode::ZeroPage => self.mem_read(self.program_counter) as u16,
@@ -889,12 +889,12 @@ impl CPU {
     }
 
     #[allow(unused)]
-    pub(super) fn get_stack_top(&self) -> u8 {
+    pub(super) fn get_stack_top(&mut self) -> u8 {
         self.mem_read(0x100 + self.stack_pointer as u16 + 1)
     }
 
     #[allow(unused)]
-    pub(super) fn get_stack_top_u16(&self) -> u16 {
+    pub(super) fn get_stack_top_u16(&mut self) -> u16 {
         self.mem_read_u16(0x100 + self.stack_pointer as u16)
     }
 
@@ -976,7 +976,7 @@ impl CPU {
 }
 
 impl Mem for CPU {
-    fn mem_read(&self, addr: u16) -> u8 {
+    fn mem_read(&mut self, addr: u16) -> u8 {
         self.bus.mem_read(addr)
     }
 
@@ -984,7 +984,7 @@ impl Mem for CPU {
         self.bus.mem_write(addr, data)
     }
 
-    fn mem_read_u16(&self, pos: u16) -> u16 {
+    fn mem_read_u16(&mut self, pos: u16) -> u16 {
         self.bus.mem_read_u16(pos)
     }
 
@@ -1004,7 +1004,7 @@ pub mod constants {
     pub const NEGATIVE_FLAG: u8 = 0b1000_0000;
 }
 
-pub fn trace(cpu: &CPU) -> String {
+pub fn trace(cpu: &mut CPU) -> String {
     let pc = format!("{:04X}", cpu.program_counter);
 
     let opscode = cpu.mem_read(cpu.program_counter);
