@@ -5,19 +5,25 @@ use crate::cartridge::Mirroring;
 pub mod registers;
 
 pub struct PPU {
+    pub ctrl: ControlRegister,
+    pub mask: MaskRegister,
+    pub status: StatusRegister,
+    // TODO OAMADDR
+    // TODO OAMDATA
+    // TODO PPUSCROLL
+    addr: AddrRegister,
+    // TODO PPUDATA
+    // TODO OAMDMA    
+
     pub chr_rom: Vec<u8>,
     pub palette_table: [u8; 32],
     pub vram: [u8; 2048],
     pub oam_data: [u8; 256],
     pub mirroring: Mirroring,
-    pub ctrl: ControlRegister,
-    pub mask: MaskRegister,
-    pub status: StatusRegister,
 
     internal_data_buf: u8,
     scanline: u16,
     cycles: usize,
-    addr: AddrRegister,
 }
 
 impl PPU {
@@ -29,10 +35,10 @@ impl PPU {
             oam_data: [0; 256],
             mirroring,
             internal_data_buf: 0,
+            ctrl: ControlRegister::new(),
             addr: AddrRegister::new(),
             mask: MaskRegister::new(),
             status: StatusRegister::new(),
-            ctrl: ControlRegister::new(),
             scanline: 0,
             cycles: 0,
         }
